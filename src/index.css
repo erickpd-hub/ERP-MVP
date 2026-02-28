@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-[#FAFAFA] text-neutral-900 antialiased tracking-tight;
+    font-family: var(--font-sans);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  .border-base {
+    @apply border border-neutral-200;
+  }
+  
+  .btn-primary {
+    @apply bg-black text-white px-4 py-2 rounded-none hover:bg-neutral-800 transition-all text-sm font-medium active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply border border-neutral-200 bg-white text-neutral-900 px-4 py-2 rounded-none hover:bg-neutral-50 transition-all text-sm font-medium active:scale-95;
+  }
+
+  .card-base {
+    @apply bg-white border border-neutral-200 rounded-none p-6 transition-all hover:border-black;
+  }
+
+  .input-base {
+    @apply w-full border border-neutral-200 rounded-none px-4 py-2 outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-sm;
+  }
+}

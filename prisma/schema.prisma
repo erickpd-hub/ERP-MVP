@@ -1,0 +1,219 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Organization {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  plan      String    @default("FREE") // FREE, PRO
+  currency  String    @default("USD")
+  taxRate   Float     @default(16)
+  taxId     String?
+  address   String?
+  createdAt DateTime  @default(now())
+
+  users          User[]
+  products       Product[]
+  invoices       Invoice[]
+  employees      Employee[]
+  providers      Provider[]
+  purchaseOrders PurchaseOrder[]
+  accountsPayable AccountPayable[]
+  cashFlow       CashMovement[]
+  logs           AuditLog[]
+  payrolls       Payroll[]
+  sessions       CashSession[]
+}
+
+model User {
+  id             String       @id
+  email          String
+  name           String?
+  role           String       @default("ADMIN") // ADMIN, MANAGER, CASHIER
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  logs           AuditLog[]
+  sessions       CashSession[]
+}
+
+model Product {
+  id             String       @id @default(uuid())
+  sku            String
+  name           String
+  description    String?
+  price          Float
+  averageCost    Float        @default(0)
+  stock          Int          @default(0)
+  minStock       Int          @default(5)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  invoiceItems   InvoiceItem[]
+  purchaseItems  PurchaseOrderItem[]
+  movements      StockMovement[]
+
+  @@unique([organizationId, sku])
+}
+
+model StockMovement {
+  id             String       @id @default(uuid())
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id])
+  quantity       Int
+  type           String       // IN, OUT
+  reason         String?      // SALE, PURCHASE, ADJUSTMENT
+  organizationId String
+  createdAt      DateTime     @default(now())
+}
+
+model Provider {
+  id             String       @id @default(uuid())
+  name           String
+  contact        String?
+  email          String?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  purchaseOrders PurchaseOrder[]
+  accountsPayable AccountPayable[]
+}
+
+model PurchaseOrder {
+  id             String       @id @default(uuid())
+  number         String
+  providerId     String
+  provider       Provider     @relation(fields: [providerId], references: [id])
+  status         String       @default("DRAFT") // DRAFT, SENT, RECEIVED, CANCELLED
+  total          Float
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+  receivedAt     DateTime?
+
+  items          PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  productId       String
+  product         Product       @relation(fields: [productId], references: [id])
+  quantityOrdered Int
+  quantityReceived Int          @default(0)
+  cost            Float
+}
+
+model AccountPayable {
+  id             String       @id @default(uuid())
+  providerId     String
+  provider       Provider     @relation(fields: [providerId], references: [id])
+  amount         Float
+  status         String       @default("PENDING") // PENDING, PAID
+  dueDate        DateTime?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+model Invoice {
+  id             String       @id @default(uuid())
+  number         String
+  status         String       @default("DRAFT") // DRAFT, PAID, CANCELLED
+  total          Float
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+  
+  items          InvoiceItem[]
+}
+
+model InvoiceItem {
+  id        String   @id @default(uuid())
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float    // Snapshot
+}
+
+model CashMovement {
+  id             String       @id @default(uuid())
+  amount         Float
+  type           String       // INCOME, EXPENSE
+  description    String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  sessionId      String?
+  session        CashSession? @relation(fields: [sessionId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+model CashSession {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  openingAmount  Float
+  closingAmount  Float?
+  expectedAmount Float?
+  status         String       @default("OPEN") // OPEN, CLOSED
+  openedAt       DateTime     @default(now())
+  closedAt       DateTime?
+  
+  movements      CashMovement[]
+}
+
+model Employee {
+  id             String       @id @default(uuid())
+  name           String
+  position       String
+  baseSalary     Float
+  bankAccount    String?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  payrolls       Payroll[]
+}
+
+model Payroll {
+  id             String   @id @default(uuid())
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id])
+  amount         Float    // Net Salary
+  base           Float
+  bonus          Float    @default(0)
+  deductions     Float    @default(0)
+  period         String   // e.g., "2024-05"
+  status         String   @default("DRAFT") // DRAFT, PAID
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime @default(now())
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  action         String       // e.g., "UPDATE_PRODUCT"
+  entity         String       // e.g., "Product"
+  entityId       String
+  oldValue       String?      // JSON string
+  newValue       String?      // JSON string
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+}
